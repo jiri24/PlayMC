@@ -92,7 +92,6 @@ class Recommender {
         switch ($this->system->getURL()->getValue("mode")) {
             case 1 :
                 $num = $this->system->getRandom()->exponentialDistribution(3);
-                $num = 0;
                 switch ($num) {
                     case 0:
                         $this->recommendNewOrUnknownPopular();
@@ -106,11 +105,15 @@ class Recommender {
                 }
                 break;
             case 2 :
-                $this->potentionalKnown(); 
+                $index = $this->indexOfPopularity() / 100;
+                if ($this->system->getRandom()->bernoulliDistribution($index) == 1) {
+                    $this->recommendNewOrUnknownPopular();
+                } else {
+                    $this->recommendNewOrUnknownUnpopular();
+                }
                 break;
             case 3 :
                 $num = $this->system->getRandom()->exponentialDistribution(3);
-                $num = 0;
                 switch ($num) {
                     case 0:
                         $this->recommendNewOrUnknownUnpopular();
@@ -215,24 +218,31 @@ class Recommender {
         $query = $this->system->getDB()->simpleQuery($sql, array(":user" => $userID));
         if ($query->rowCount() != 0) {
             // Zjištění limitu
-            $sql_limit = "SELECT track_id FROM tracks_selection WHERE 1=1" . $this->getGenre() . $this->getYear();
+            $sql_limit = "SELECT popularity FROM tracks_selection WHERE 1=1" . $this->getGenre() . $this->getYear() . " ORDER BY popularity DESC";
             $query = $this->system->getDB()->simpleQuery($sql_limit);
             // Vypočítáme limit
             $limit = round($query->rowCount() / $this->divideLimit);
+            for ($i = 0; $i <= $limit; $i++) {
+                $data = $query->fetch(PDO::FETCH_ASSOC);
+            }
+            $popularity = $data['popularity'];
             // Výber blízké písničky
-            $played_tracks = "SELECT track_id FROM plays_history WHERE user_id=:user ORDER BY time DESC LIMIT " . $this->trackLimit;
             $played_artists = "SELECT a.artist_name FROM (SELECT track_id FROM plays_history WHERE user_id=:user ORDER BY time DESC LIMIT " . $this->artistLimit . ") p, tracks_selection t, masters_artists a WHERE p.track_id=t.track_id AND t.master_id=a.master_id GROUP BY a.artist_name";
             $played_artists_tracks = "SELECT track_id FROM ($played_artists) a, masters_artists ma, tracks_selection t WHERE a.artist_name=ma.artist_name AND ma.master_id=t.master_id";
-            $selection = "SELECT track_id FROM tracks_selection WHERE 1=1" . $this->getGenre() . $this->getYear() . " ORDER BY popularity DESC LIMIT :limit";
-            $except = "(($selection) EXCEPT ($played_tracks)) EXCEPT ($played_artists_tracks)";
-            $sql = "SELECT t.* FROM ($except) e, tracks_distance d, tracks_selection t, white_list w WHERE "
+            $black_list = "SELECT track_id FROM black_list WHERE user_id=:user";
+            $union = "($played_artists_tracks) UNION ($black_list)";
+            $selection = "SELECT track_id FROM tracks_selection WHERE popularity>=:limit AND track_id NOT IN ($union)" . $this->getGenre() . $this->getYear();
+            $sql = "SELECT t.* FROM ($selection) e, tracks_distance d, tracks_selection t, white_list w WHERE "
                     . "w.user_id=:user AND d.track_id1=w.track_id AND d.track_id2=e.track_id AND d.track_id2=t.track_id";
             $query = $this->system->getDB()->simpleQuery($sql, array(":user" => $userID, ":limit" => $popularity));
-            $data = $this->randomSelection($query);
-            print_r($data);
-//$this->printTrack($data);
+            if ($query->rowCount() != 0) {
+                $data = $this->randomSelection($query);
+                $this->printTrack($data);
+            } else {
+                $this->newOrUnknownPopular();
+            }
         } else {
-            //$this->newOrUnknownPopular();
+            $this->newOrUnknownPopular();
         }
     }
 
@@ -244,31 +254,52 @@ class Recommender {
         $query = $this->system->getDB()->simpleQuery($sql, array(":user" => $userID));
         if ($query->rowCount() != 0) {
             // Zjištění limitu
-            $sql_limit = $selection = "SELECT track_id FROM tracks_selection WHERE 1=1" . $this->getGenre() . $this->getYear();
+            $sql_limit = "SELECT popularity FROM tracks_selection WHERE 1=1" . $this->getGenre() . $this->getYear() . " ORDER BY popularity DESC";
             $query = $this->system->getDB()->simpleQuery($sql_limit);
             // Vypočítáme limit
             $limit = round($query->rowCount() / $this->divideLimit);
+            for ($i = 0; $i <= $limit; $i++) {
+                $data = $query->fetch(PDO::FETCH_ASSOC);
+            }
+            $popularity = $data['popularity'];
             // Výber blízké písničky
-            $played_tracks = "SELECT track_id FROM plays_history WHERE user_id=:user ORDER BY time DESC LIMIT " . $this->trackLimit;
             $played_artists = "SELECT a.artist_name FROM (SELECT track_id FROM plays_history WHERE user_id=:user ORDER BY time DESC LIMIT " . $this->artistLimit . ") p, tracks_selection t, masters_artists a WHERE p.track_id=t.track_id AND t.master_id=a.master_id GROUP BY a.artist_name";
             $played_artists_tracks = "SELECT track_id FROM ($played_artists) a, masters_artists ma, tracks_selection t WHERE a.artist_name=ma.artist_name AND ma.master_id=t.master_id";
-            $selection = "SELECT track_id FROM tracks_selection WHERE 1=1" . $this->getGenre() . $this->getYear() . " ORDER BY popularity DESC OFFSET :limit";
-            $except = "(($selection) EXCEPT ($played_tracks)) EXCEPT ($played_artists_tracks)";
-            $sql = "SELECT t.* FROM ($except) e, tracks_distance d, tracks_selection t, white_list w WHERE "
+            $black_list = "SELECT track_id FROM black_list WHERE user_id=:user";
+            $union = "($played_artists_tracks) UNION ($black_list)";
+            $selection = "SELECT track_id FROM tracks_selection WHERE popularity<:limit AND track_id NOT IN ($union)" . $this->getGenre() . $this->getYear();
+            $sql = "SELECT t.* FROM ($selection) e, tracks_distance d, tracks_selection t, white_list w WHERE "
                     . "w.user_id=:user AND d.track_id1=w.track_id AND d.track_id2=e.track_id AND d.track_id2=t.track_id";
-            $query = $this->system->getDB()->simpleQuery($sql, array(":user" => $userID, ":limit" => $limit));
-            $data = $this->randomSelection($query);
-            $this->printTrack($data);
+            $query = $this->system->getDB()->simpleQuery($sql, array(":user" => $userID, ":limit" => $popularity));
+            if ($query->rowCount() != 0) {
+                $data = $this->randomSelection($query);
+                $this->printTrack($data);
+            } else {
+                $this->newOrUnknownUnpopular();
+            }
         } else {
-            //$this->newOrUnknownUnpopular();
+            $this->newOrUnknownUnpopular();
         }
     }
-    
+
     // Nové/neznámé - populární
     private function newOrUnknownPopular() {
-        // Získá žánr
-        $sql = "SELECT * FROM tracks_selection WHERE 1=1" . $this->getGenre() . $this->getYear() . " order by popularity DESC LIMIT " . $this->top;
-        $query = $this->system->getDB()->simpleQuery($sql);
+        // Zjištění limitu
+        $sql_limit = "SELECT popularity FROM tracks_selection WHERE 1=1" . $this->getGenre() . $this->getYear() . " ORDER BY popularity DESC";
+        $query = $this->system->getDB()->simpleQuery($sql_limit);
+        // Vypočítáme limit
+        $limit = round($query->rowCount() / $this->divideLimit);
+        for ($i = 0; $i <= $limit; $i++) {
+            $data = $query->fetch(PDO::FETCH_ASSOC);
+        }
+        $popularity = $data['popularity'];
+        // Získá skladby
+        $played_artists = "SELECT a.artist_name FROM (SELECT track_id FROM plays_history WHERE user_id=:user ORDER BY time DESC LIMIT " . $this->artistLimit . ") p, tracks_selection t, masters_artists a WHERE p.track_id=t.track_id AND t.master_id=a.master_id GROUP BY a.artist_name";
+        $played_artists_tracks = "SELECT track_id FROM ($played_artists) a, masters_artists ma, tracks_selection t WHERE a.artist_name=ma.artist_name AND ma.master_id=t.master_id";
+        $black_list = "SELECT track_id FROM black_list WHERE user_id=:user";
+        $union = "($played_artists_tracks) UNION ($black_list)";
+        $sql = "SELECT * FROM tracks_selection WHERE popularity>=:limit AND track_id NOT IN ($union)" . $this->getGenre() . $this->getYear();
+        $query = $this->system->getDB()->simpleQuery($sql, array(":limit" => $popularity, ":user" => $this->system->getAuth()->getUser()->getID()));
         $data = null;
         $num = $this->system->getRandom()->uniformDistribution(0, $query->rowCount() - 1);
         for ($i = 0; $i <= $num; $i++) {
@@ -279,26 +310,22 @@ class Recommender {
 
     // Nové/neznámé - nepopulární
     private function newOrUnknownUnpopular() {
-        // Získá žánr
-        $sql = "SELECT * FROM tracks_selection WHERE popularity<?";
-        $params = array();
-        $params[] = $this->popularityBreak;
-        // Žánr
-        if ($this->system->getURL()->getArg(2) == "genre") {
-            $genreID = $this->system->getURL()->getValue("genre");
-            $genre = $this->system->getDB()->query("SELECT * FROM genre WHERE id=?", array($genreID));
-            if (count($genre) != 0) {
-                $sql .= " AND genres LIKE '%" . $genre[0]['name'] . "%'";
-                //$params['genre'] = $genre[0]['name'];
-            }
+        // Zjištění limitu
+        $sql_limit = "SELECT popularity FROM tracks_selection WHERE 1=1" . $this->getGenre() . $this->getYear() . " ORDER BY popularity DESC";
+        $query = $this->system->getDB()->simpleQuery($sql_limit);
+        // Vypočítáme limit
+        $limit = round($query->rowCount() / $this->divideLimit);
+        for ($i = 0; $i <= $limit; $i++) {
+            $data = $query->fetch(PDO::FETCH_ASSOC);
         }
-
-        // CZ&SK hudba
-        if ($this->system->getURL()->getArg(4) == "national") {
-            $sql .= " AND (country LIKE '%Czech%' OR country LIKE '%Slovakia%')";
-        }
-        $sql .= " order by popularity DESC";
-        $query = $this->system->getDB()->simpleQuery($sql, $params);
+        $popularity = $data['popularity'];
+        // Získá skladby
+        $played_artists = "SELECT a.artist_name FROM (SELECT track_id FROM plays_history WHERE user_id=:user ORDER BY time DESC LIMIT " . $this->artistLimit . ") p, tracks_selection t, masters_artists a WHERE p.track_id=t.track_id AND t.master_id=a.master_id GROUP BY a.artist_name";
+        $played_artists_tracks = "SELECT track_id FROM ($played_artists) a, masters_artists ma, tracks_selection t WHERE a.artist_name=ma.artist_name AND ma.master_id=t.master_id";
+        $black_list = "SELECT track_id FROM black_list WHERE user_id=:user";
+        $union = "($played_artists_tracks) UNION ($black_list)";
+        $sql = "SELECT * FROM tracks_selection WHERE popularity<:limit AND track_id NOT IN ($union)" . $this->getGenre() . $this->getYear();
+        $query = $this->system->getDB()->simpleQuery($sql, array(":limit" => $popularity, ":user" => $this->system->getAuth()->getUser()->getID()));
         $data = null;
         $num = $this->system->getRandom()->uniformDistribution(0, $query->rowCount() - 1);
         for ($i = 0; $i <= $num; $i++) {
@@ -446,6 +473,14 @@ class Recommender {
     private function getBlackList() {
         $data = $this->system->getDB()->simpleQuery("SELECT t.* FROM black_list b, tracks_selection t WHERE b.track_id=t.track_id AND b.user_id=?", array($this->system->getAuth()->getUser()->getID()))->fetchAll(PDO::FETCH_ASSOC);
         echo(json_encode($data));
+    }
+
+    // Výpočet indexu popularity oblíbených interpretů
+    private function indexOfPopularity() {
+        $sql = "SELECT SUM(a.popularity * ua.count) / SUM(ua.count) AS index FROM " .
+                "(SELECT m.artist_name, COUNT(m.artist_name) AS count FROM white_list w, tracks_selection t, masters_artists m WHERE user_id=? AND w.track_id=t.track_id AND t.master_id=m.master_id GROUP BY m.artist_name) ua, artist a " .
+                "WHERE ua.artist_name=a.name";
+        return $this->system->getDB()->query($sql, array($this->system->getAuth()->getUser()->getID()))[0]['index'];
     }
 
 }

@@ -38,11 +38,6 @@
         {/if}
     {/for}
 
-    <div class="btn-group mr-2" role="group" aria-label="CZ&SK">
-        <button type="button" class="btn btn-dark" onclick="player.setNational(false)">Vše</button>
-        <button type="button" class="btn btn-dark" onclick="player.setNational(true)">CZ&SK</button>
-    </div>
-
     <div class="container fixed-bottom player">
         <div id="track-title"></div>
         <div class="btn-group" role="group" aria-label="Přehrávač">
