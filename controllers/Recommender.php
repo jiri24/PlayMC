@@ -42,6 +42,12 @@ class Recommender {
                 case "getBlackList":
                     $this->getBlackList();
                     break;
+                case "getGenres":
+                    $this->getGenres();
+                    break;
+                case "getYears":
+                    $this->getYears();
+                    break;
                 default :
                     $system->getTemplate()->error();
                     break;
@@ -472,6 +478,20 @@ class Recommender {
     // Získá seznam neoblíbených skladeb
     private function getBlackList() {
         $data = $this->system->getDB()->simpleQuery("SELECT t.* FROM black_list b, tracks_selection t WHERE b.track_id=t.track_id AND b.user_id=?", array($this->system->getAuth()->getUser()->getID()))->fetchAll(PDO::FETCH_ASSOC);
+        echo(json_encode($data));
+    }
+
+    // Získá seznam žánrů
+    private function getGenres() {
+        $data = $this->system->getDB()->simpleQuery("SELECT id, name FROM genre ORDER BY id")->fetchAll(PDO::FETCH_ASSOC);
+        ;
+        echo(json_encode($data));
+    }
+
+    // Získá seznam desetiletí
+    private function getYears() {
+        $data = $this->system->getDB()->simpleQuery("SELECT name FROM year ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
+        ;
         echo(json_encode($data));
     }
 
