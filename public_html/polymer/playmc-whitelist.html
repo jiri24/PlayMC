@@ -1,0 +1,67 @@
+<link rel="import" href="components/polymer/polymer-element.html">
+<link rel="import" href="components/polymer/lib/elements/dom-repeat.html">
+<link rel="import" href="components/google-youtube/google-youtube.html">
+<link rel="import" href="components/granite-bootstrap/granite-bootstrap.html">
+
+<dom-module id="playmc-whitelist">
+    <link rel="import" type="css" href="../css/font-awesome.min.css">
+    <template>
+        <style include="granite-bootstrap"></style>
+        <style>
+        </style>
+
+        <h3 class="text-white">Oblíbené</h3>
+
+        <table class="table table-dark">
+            <thead>
+                <tr>
+                    <th scope="col">Přehrát</th>
+                    <th scope="col">Název</th>
+                    <th scope="col">Umělec</th>
+                </tr>
+            </thead>
+            <tbody>
+            <template is="dom-repeat" items="{{songs}}">
+                <tr>
+                    <td><button type="button" class="btn btn-dark btn-sm" on-click="play" data-args$="{{item.track_id}}"><i class="fa fa-play" data-args$="{{item.track_id}}"></i></button></td>
+                    <td>{{item.title}}</td>
+                    <td>{{item.artist}}</td>
+                </tr>
+            </template>
+            </tbody>
+        </table>
+    </template>
+
+    <script>
+        Polymer({
+            is: 'playmc-whitelist',
+            properties: {
+                songs: {
+                    type: Object
+                }
+            },
+            ready: function(){
+                this.load();
+            },
+            load: function () {
+                var favorite = this;
+                var xhttp = new XMLHttpRequest();
+                xhttp.onreadystatechange = function () {
+                    if (this.readyState == 4 && this.status == 200) {
+                        favorite.songs = JSON.parse(this.responseText);
+                    }
+                };
+                var url = "./api.php?getWhiteList";
+                xhttp.open("GET", url, true);
+                xhttp.send();
+            },
+            play: function (e) {
+                var track_id = e.target.getAttribute('data-args');
+                this.fire('iron-signal', {name: 'playtrack', data: track_id});
+            },
+            detached: function(){
+                console.log("volano");
+            }
+        });
+    </script>
+</dom-module>

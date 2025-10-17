@@ -4,6 +4,7 @@ session_start();
 
 require_once '../system/System.php';
 
+ini_set('date.timezone', 'Europe/Berlin');
 $system = new System();
 
 //** un-comment the following line to show the debug console

@@ -3,7 +3,7 @@
     <div class="container content">
         <h1 class="h1">Přihlásit se</h1>
         {if count($messageDanger) neq 0}
-            <div class="alert alert-danger">
+            <div class="alert alert-danger pb-0">
                 {foreach $messageDanger as $message}
                     <p>{$message}</p>
                 {/foreach}
@@ -21,5 +21,6 @@
             </div>
             <button type="submit" class="btn btn-secondary"><i class="fa fa-sign-in fa-lg"></i> Přihlásit se</button>
         </form>
+        <a href="{$webPath}index.php?account&forgot-password">Zapomněl jste heslo?</a>
     </div>
 {/block}

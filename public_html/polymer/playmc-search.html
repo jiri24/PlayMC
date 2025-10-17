@@ -1,0 +1,206 @@
+<link rel="import" href="components/polymer/polymer-element.html">
+<link rel="import" href="components/polymer/lib/elements/dom-repeat.html">
+<link rel="import" href="components/polymer/lib/elements/dom-if.html">
+<link rel="import" href="components/google-youtube/google-youtube.html">
+<link rel="import" href="components/granite-bootstrap/granite-bootstrap.html">
+<link rel="import" href="components/iron-input/iron-input.html">
+
+<dom-module id="playmc-search">
+    <link rel="import" type="css" href="../css/font-awesome.min.css">
+    <template>
+        <style include="granite-bootstrap"></style>
+        <style>
+        </style>
+
+        <h3 class="text-white">Vyhledávání</h3>
+        <div class="form-inline">
+            <div class="form-group">
+                <iron-input bind-value="{{query}}" on-keydown="checkForEnter">
+                    <input is="iron-input" class="form-control" placeholder="Umělec, album, skladba">
+                </iron-input>
+            </div>
+            <button type="button" class="btn btn-dark" on-click="search">Hledat</button>
+        </div>
+
+        <template is="dom-if" if="{{hasArtists}}">
+            <h4 class="text-white">Umělci</h4>
+            <table class="table table-dark">
+                <thead>
+                    <tr>
+                        <th scope="col">Umělec</th>
+                        <th scope="col">Akce</th>
+                    </tr>
+                </thead>
+                <tbody>
+                <template is="dom-repeat" items="{{artists}}">
+                    <tr>
+                        <td>{{item.name}}</td>
+                        <td><a href="#/artist/{{item.id}}" class="btn btn-dark btn-sm">Zobrazit</a></td>
+                    </tr>
+                </template>
+                </tbody>
+            </table>
+        </template>
+
+        <template is="dom-if" if="{{hasMasters}}">
+            <h4 class="text-white">Alba</h4>
+            <table class="table table-dark">
+                <thead>
+                    <tr>
+                        <th scope="col">Album</th>
+                        <th scope="col">Umělec</th>
+                        <th scope="col">Akce</th>
+                    </tr>
+                </thead>
+                <tbody>
+                <template is="dom-repeat" items="{{masters}}">
+                    <tr>
+                        <td>{{item.title}}</td>
+                        <td>{{item.artist}}</td>
+                        <td><a href="#/album/{{item.id}}" class="btn btn-dark btn-sm">Zobrazit</a></td>
+                    </tr>
+                </template>
+                </tbody>
+            </table>
+        </template>
+
+        <template id="tracksList" is="dom-if" if="{{hasTracks}}">
+            <h4 class="text-white">Skladby</h4>
+            <table class="table table-dark">
+                <thead>
+                    <tr>
+                        <th scope="col">Akce</th>
+                        <th scope="col">Název</th>
+                        <th scope="col">Umělec</th>
+                    </tr>
+                </thead>
+                <tbody>
+                <template is="dom-repeat" items="{{tracks}}">
+                    <tr>
+                        <td>
+                            <div class="btn-group" role="group" aria-label="Akce">
+                                <button type="button" class="btn btn-dark btn-sm" on-click="play" data-args$="{{item.track_id}}"><i class="fa fa-play" data-args$="{{item.track_id}}"></i></button>
+                                <template is="dom-if" if="{{item.like}}" restamp="true">
+                                    <button type="button" class="btn btn-dark btn-sm active" on-click="like" data-args$="{{item.track_id}}"><i class="fa fa-thumbs-up" data-args$="{{item.track_id}}"></i></button>
+                                </template>
+                                <template is="dom-if" if="{{!item.like}}" restamp="true">
+                                    <button type="button" class="btn btn-dark btn-sm" on-click="like" data-args$="{{item.track_id}}"><i class="fa fa-thumbs-up" data-args$="{{item.track_id}}"></i></button>
+                                </template>
+                            </div>
+                        </td>
+                        <td>{{item.title}}</td>
+                        <td>{{item.artist}}</td>
+                    </tr>
+                </template>
+                </tbody>
+            </table>
+        </template>
+    </template>
+
+    <template is="dom-if" if="{{!hasResult}}">
+        <p class="text-white">{{message}}</p>
+    </template>
+</template>
+
+<script>
+    Polymer({
+        is: 'playmc-search',
+        properties: {
+            query: String,
+            message: String,
+            artists: Object,
+            masters: Object,
+            tracks: Object,
+            hasArtists: Boolean,
+            hasMasters: Boolean,
+            hasTracks: Boolean,
+            hasResult: Boolean
+        },
+        play: function (e) {
+            var track_id = e.target.getAttribute('data-args');
+            this.fire('iron-signal', {name: 'playtrack', data: track_id});
+        },
+        search: function () {
+            if (this.query && this.query != "") {
+                if (this.query.length >= 3) {
+                    this.hasResult = true;
+                    var search = this;
+                    var http = new XMLHttpRequest();
+                    var url = "./api.php?search";
+                    var params = "query=" + this.query;
+                    http.open("POST", url, true);
+                    http.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                    http.onreadystatechange = function () {
+                        if (http.readyState == 4 && http.status == 200) {
+                            var result = JSON.parse(this.responseText);
+                            search.artists = result.artists;
+                            if (search.artists.length != 0) {
+                                search.hasArtists = true;
+                            } else {
+                                search.hasArtists = false;
+                            }
+                            search.masters = result.masters;
+                            if (search.masters.length != 0) {
+                                search.hasMasters = true;
+                            } else {
+                                search.hasMasters = false;
+                            }
+                            search.tracks = result.tracks;
+                            if (search.tracks.length != 0) {
+                                search.hasTracks = true;
+                            } else {
+                                search.hasTracks = false;
+                            }
+                            if (search.artists.length == 0 &&
+                                    search.masters.length == 0 &&
+                                    search.tracks.length == 0) {
+                                search.hasResult = false;
+                            } else {
+                                search.hasResult = true;
+                            }
+                        }
+                    }
+                    http.send(params);
+                    this.message = "Nebylo nic nalezeno.";
+                } else {
+                    this.hasResult = false;
+                    this.message = "Hledaný výraz musí mít minimálně 3 znaky.";
+                }
+            }
+        },
+        like: function (e) {
+            var track_id = e.target.getAttribute('data-args');
+            this.fire('iron-signal', {name: 'liketrack', data: track_id});
+            for (var i = 0; i < this.tracks.length; i++) {
+                if (this.tracks[i].track_id == track_id) {
+                    this.tracks[i].like = !this.tracks[i].like;
+                    var tmp = this.tracks;
+                    this.tracks = [];
+                    this.$.tracksList.render();
+                    this.tracks = tmp;
+                    break;
+                }
+            }
+        },
+        checkForEnter: function (e) {
+            if (e.keyCode === 13) {
+                this.search();
+            }
+        },
+        _refreshLike: function (track_id) {
+            if (this.tracks) {
+                for (var i = 0; i < this.tracks.length; i++) {
+                    if (this.tracks[i].track_id == track_id) {
+                        this.tracks[i].like = !this.tracks[i].like;
+                        var tmp = this.tracks;
+                        this.tracks = [];
+                        this.$.tracksList.render();
+                        this.tracks = tmp;
+                        break;
+                    }
+                }
+            }
+        }
+    });
+</script>
+</dom-module>

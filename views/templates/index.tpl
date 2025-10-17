@@ -10,6 +10,7 @@
         <link href="{$webPath}css/bootstrap.min.css" rel="stylesheet" media="screen">
         <script src="{$webPath}js/jquery-3.2.0.min.js"></script>
         <script src="{$webPath}js/bootstrap.min.js"></script>
+        <script src="{$webPath}js/popper.js"></script>
 
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <!--<link rel="stylesheet" href="{$webPath}css/font-awesome.min.css">-->
@@ -18,8 +19,19 @@
         <link rel="stylesheet" href="{$webPath}css/style.css">
         <script src='https://www.google.com/recaptcha/api.js'></script>
 
-        <script src="{$webPath}js/vue.js"></script>
-        <script src="{$webPath}js/vue-router.js"></script>
+        <script src="{$webPath}js/soundmanager2.js"></script>
+        <script src="{$webPath}polymer/components/webcomponentsjs/webcomponents-lite.js"></script>
+        <link rel="import" href="{$webPath}polymer/playmc-player.html">
+
+
+        <!-- Polymer -->
+        <script src="{$webPath}polymer/components/webcomponentsjs/webcomponents-lite.js"></script>
+
+        <link rel="import" href="{$webPath}polymer/components/app-route/app-route.html">
+        <link rel="import" href="{$webPath}polymer/components/app-route/app-location.html">
+
+
+
     </head>
     <body>
         <div id="app">
@@ -37,10 +49,21 @@
                         <ul class="navbar-nav mr-auto">
                             {if !$userLogin}
                                 <li class="nav-item">
-                                    <a class="nav-link" href="#">Domů</a>
+                                    <a class="nav-link" href="{$webPath}/index.php">Domů</a>
                                 </li>
                             {else}
-
+                                <li class="nav-item">
+                                    <a class="nav-link" href="{$webPath}/index.php#/">Doporučení</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" href="{$webPath}/index.php#/white-list">Oblíbené</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" href="{$webPath}/index.php#/black-list">Neoblíbené</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" href="{$webPath}/index.php#/search">Vyhledávání</a>
+                                </li>
                             {/if}
                         </ul>
                         <ul class="navbar-nav ml-auto">
@@ -48,12 +71,17 @@
                                 <li class="nav-item"><a class="nav-link" href="{$webPath}index.php?registration&register"><i class="fa fa-pencil fa-lg"></i> Zaregistrovat se</a></li>
                                 <li class="nav-item"><a class="nav-link" href="{$webPath}index.php?account&login"><i class="fa fa-sign-in fa-lg"></i> Přihlásit se</a></li>
                                 {else}
-                                <li class="nav-item dropdown">
-                                    <a class="nav-link" href="{$webPath}" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">{$userFullName} <span class="caret"></span></a>
-                                    <ul class="dropdown-menu">
-                                        <li><a href="{$webPath}index.php?account&settings"><i class="fa fa-id-card fa-lg"></i> Nastavení</a></li>
-                                        <li><a href="{$webPath}index.php?account&logout"><i class="fa fa-sign-out fa-lg"></i> Odhlásit se</a></li>
-                                    </ul>
+                                <span class="navbar-text">
+                                    {$userFullName}
+                                </span>
+                                <li class="nav-item">
+                                    <a class="nav-link" href="{$webPath}/index.php?account&settings"><i class="fa fa-cog fa-lg"></i> Nastavení</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" href="{$webPath}/index.php?info&help"><i class="fa fa-question-circle fa-lg"></i> Nápověda</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" href="{$webPath}/index.php?account&logout"><i class="fa fa-sign-out fa-lg"></i> Odhlásit se</a>
                                 </li>
                             {/if}
                         </ul>

@@ -84,7 +84,7 @@ class System {
 
     // Zahashuje heslo
     public function hashPassword($password, $salt) {
-        return hash("sha512", $password . $salt);
+        return password_hash($password . $salt, PASSWORD_BCRYPT);
     }
 
     // Nastavení přihlášení

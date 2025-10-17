@@ -20,7 +20,6 @@ class SmartyPlayMC extends Smarty {
         $this->assign('appName', WEB_NAME);
         $this->assign('messageDanger', array());
         $this->assign('messageSuccess', array());
-        $this->cashing = false;
     }
     
     // Nastavení výstupu

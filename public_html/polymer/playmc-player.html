@@ -1,0 +1,783 @@
+<link rel="import" href="components/polymer/polymer-element.html">
+<link rel="import" href="components/polymer/lib/elements/dom-repeat.html">
+<link rel="import" href="components/polymer/lib/elements/dom-if.html">
+<link rel="import" href="components/google-youtube/google-youtube.html">
+<link rel="import" href="components/granite-bootstrap/granite-bootstrap.html">
+<link rel="import" href="components/neon-animation/web-animations.html">
+<link rel="import" href="components/paper-dropdown-menu/paper-dropdown-menu-light.html">
+<link rel="import" href="components/paper-item/paper-item.html">
+<link rel="import" href="components/paper-listbox/paper-listbox.html">
+
+<dom-module id="playmc-player">
+    <link rel="import" type="css" href="../css/font-awesome.min.css">
+    <template>
+        <style include="granite-bootstrap"></style>
+        <style>
+            #videoplayer {
+                width: 100%;
+                background-color: black;
+            }
+
+            .sizing {
+                position: relative;
+                height: 0;
+                /* pomÄ›r stran 16:9 */
+                padding-top: 56.25%;
+            }
+
+            .sizing > * {
+                position: absolute;
+                top: 0; left: 0; right: 0; bottom: 0;
+                width: 100%; height: 100%;
+            }
+
+            .player {
+                color: white;
+                background-color: #161616;
+            }
+            .player-right-box {
+                background-color: #222;
+            }
+
+            .controls {
+                background-color: #161616;
+            }
+
+            .info-text {
+                height: 2rem;
+            }
+            .nopadding {
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            .scrollable {
+                height:100%;
+                position: absolute;
+                top: 0px;
+                bottom: 0;
+                left: 0;
+                width: 100%;
+                overflow-y: scroll; 
+            }
+
+            paper-listbox {
+                background-color: black;
+            }
+            paper-dropdown-menu-light {
+                width: 48%;
+            }
+            :host{
+                --primary-text-color: white;
+            }
+        </style>
+        <iron-signals on-iron-signal-playtrack="_playTrack"></iron-signals>
+        <iron-signals on-iron-signal-liketrack="_likeTrack"></iron-signals>
+        <app-location id="location" use-hash-as-path route="{{route}}"></app-location>
+
+        <!-- Two routes, one for the home page, and one for the tabs page. -->
+        <app-route route="{{route}}" pattern="/white-list" active="{{whiteListActive}}"></app-route>
+        <app-route route="{{route}}" pattern="/black-list" active="{{blackListActive}}"></app-route>
+        <app-route route="{{route}}" pattern="/search" active="{{searchActive}}"></app-route>
+        <app-route route="{{route}}" pattern="/artist/:artist_id" data="{{routeData}}" active="{{artistActive}}"></app-route>
+        <app-route route="{{route}}" pattern="/album/:album_id" data="{{routeData}}" active="{{albumActive}}"></app-route>
+        <app-route route="{{route}}" pattern="/" active="{{homeActive}}"></app-route>
+
+        <div class="container player">
+            <div class="row">
+                <div class="col-md-6 nopadding">
+                    <div id="videoplayer" class="sizing">
+                        <canvas id="visualizer" width="800" height="350"></canvas>
+                        <div id="youtubeplayer"></div>
+                    </div>
+                </div>
+                <div class="col-md-6 player-right-box nopadding">
+                    <div class="scrollable">
+                        <div hidden$="{{!home}}">
+                             <template id="tracksList" is="dom-if" if="{{recommended_like}}">
+                                Líbí se vám {{recommended_like.title}} od {{recommended_like.artist}}, mohlo by se vám líbit:
+                                <table class="table table-dark">
+                                    <thead>
+                                        <tr>
+                                            <th scope="col">Akce</th>
+                                            <th scope="col">Název</th>
+                                            <th scope="col">Umělec</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    <template id="tracksListRec" is="dom-repeat" items="{{recommended}}">
+                                        <tr>
+                                            <td>
+                                                <div class="btn-group" role="group" aria-label="Akce">
+                                                    <button type="button" class="btn btn-dark btn-sm" on-click="playTrackButton" data-args$="{{item.track_id}}"><i class="fa fa-play" data-args$="{{item.track_id}}"></i></button>
+                                                    <template is="dom-if" if="{{item.like}}" restamp="true">
+                                                        <button type="button" class="btn btn-dark btn-sm active" on-click="likeTrackButton" data-args$="{{item.track_id}}"><i class="fa fa-thumbs-up" data-args$="{{item.track_id}}"></i></button>
+                                                    </template>
+                                                    <template is="dom-if" if="{{!item.like}}" restamp="true">
+                                                        <button type="button" class="btn btn-dark btn-sm" on-click="likeTrackButton" data-args$="{{item.track_id}}"><i class="fa fa-thumbs-up" data-args$="{{item.track_id}}"></i></button>
+                                                    </template>
+                                                    <template is="dom-if" if="{{item.dislike}}" restamp="true">
+                                                        <button type="button" class="btn btn-dark btn-sm active" on-click="dislikeTrackButton" data-args$="{{item.track_id}}"><i class="fa fa-thumbs-down" data-args$="{{item.track_id}}"></i></button>
+                                                    </template>
+                                                    <template is="dom-if" if="{{!item.dislike}}" restamp="true">
+                                                        <button type="button" class="btn btn-dark btn-sm" on-click="dislikeTrackButton" data-args$="{{item.track_id}}"><i class="fa fa-thumbs-down" data-args$="{{item.track_id}}"></i></button>
+                                                    </template>
+                                                </div>
+                                            </td>
+                                            <td>{{item.title}}</td>
+                                            <td>{{item.artist}}</td>
+                                        </tr>
+                                    </template>
+                                    </tbody>
+                                </table>
+                            </template>
+                        </div>
+                        <div hidden$="{{!whiteListActive}}">
+                             <playmc-whitelist id="whitelist"></playmc-whitelist>
+                        </div>
+                        <div hidden$="{{!blackListActive}}">
+                             <playmc-blacklist id="blacklist"></playmc-blacklist>
+                        </div>
+                        <div hidden$="{{!searchActive}}">
+                             <playmc-search id="playerSearch"></playmc-search>
+                        </div>
+                        <div hidden$="{{!artistActive}}">
+                             <playmc-artist artist_id="{{routeData.artist_id}}"></playmc-artist>
+                        </div>
+                        <div hidden$="{{!albumActive}}">
+                             <playmc-album album_id="{{routeData.album_id}}" id="albumView"></playmc-album>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row pb-3 controls">
+                <div class="col-md-8">
+                    <div class="text-white info-text">{{full_title}}</div>
+                    <div class="btn-group" role="group" aria-label="Přehrávač">
+                        <div class="btn-group mr-2" role="group" aria-label="Přehrávání">
+                            <button type="button" class="btn btn-dark" on-click="play"><i id="play" class$="{{btn_play}}"></i><span class="sr-only">přehrát/pozastavit</span></button>
+                            <button type="button" class="btn btn-dark" on-click="next"><i id="next" class="fa fa-lg fa-forward"></i><span class="sr-only">následující</span></button>
+                        </div>
+                        <div class="btn-group mr-2" role="group" aria-label="Hodnocení">
+                            <button type="button" class$="{{btn_like}}" on-click="like"><i class="fa fa-lg fa-thumbs-up"></i></button>
+                            <button type="button" class$="{{btn_dislike}}" on-click="dislike"><i class="fa fa-lg fa-thumbs-down"></i></button>
+                        </div>
+                    </div>
+                    <div class="btn-group mr-2" role="group" aria-label="Režim">
+                        <button type="button" class$="{{btn_mode1}}" on-click="setMode" data-args="1">Známé</button>
+                        <button type="button" class$="{{btn_mode2}}" on-click="setMode" data-args="2">Automat</button>
+                        <button type="button" class$="{{btn_mode3}}" on-click="setMode" data-args="3">Průzkum</button>
+                    </div>
+                    <div class="btn-group mr-2" role="group" aria-label="Typ přehrávače">
+                        <button type="button" class$="{{btn_spotify}}" on-click="switchPlayer" data-args="1"><i class="fa fa-lg fa-spotify" data-args="1"></i></button>
+                        <button type="button" class$="{{btn_youtube}}" on-click="switchPlayer" data-args="2"><i class="fa fa-lg fa-youtube-play" data-args="2"></i></button>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <paper-dropdown-menu-light label="Žánr" on-value-changed="setGenre" vertical-align="bottom" horizontal-align="left">
+                        <paper-listbox slot="dropdown-content" selected="0">
+                            <template is="dom-repeat" items="{{genres}}">
+                                <paper-item>{{item.name}}</paper-item>
+                            </template>
+                        </paper-listbox>
+                    </paper-dropdown-menu-light>
+
+                    <paper-dropdown-menu-light label="Desetiletí" on-value-changed="setYear" vertical-align="bottom" horizontal-align="left">
+                        <paper-listbox slot="dropdown-content" selected="6">
+                            <template is="dom-repeat" items="{{years}}">
+                                <paper-item>{{item.name}}</paper-item>
+                            </template>
+                        </paper-listbox>
+                    </paper-dropdown-menu-light>
+                </div>
+            </div>
+        </div>
+    </template>
+    <script>
+        window.AudioContext = window.AudioContext || window.webkitAudioContext || window.mozAudioContext;
+
+        window.onload = function () {
+
+        };
+
+
+
+        class PlayMCElement extends Polymer.Element {
+            static get is() {
+                return "playmc-player";
+            }
+            static get properties() {
+                return {
+                    route: {
+                        type: Object,
+                        observer: "_routeChanged"
+                    },
+                    routeData: {
+                        type: Object
+                    },
+                };
+            }
+
+            constructor() {
+                super();
+                // Typ
+                // Spotify = false
+                // Youtube = true
+                this.type = false;
+                this.playing = false;
+                this.video_player = null;
+                this.audio_player = null;
+                this.track = null;
+                this.genre = 0;
+                this.year = "all";
+                this.mode = 2;
+                this.full_title = "";
+                this.genres = [];
+                this.recommended = [];
+                this.recommended_like = null;
+                this.home = true;
+                this.btn_play = "fa fa-lg fa-play";
+                this.btn_like = "btn btn-dark";
+                this.btn_dislike = "btn btn-dark";
+                this.btn_mode1 = "btn btn-dark";
+                this.btn_mode2 = "btn btn-dark active";
+                this.btn_mode3 = "btn btn-dark";
+                this.btn_spotify = "btn btn-success";
+                this.btn_youtube = "btn btn-dark";
+
+                this.getGenres();
+                this.getYears();
+            }
+
+            createVisualizer() {
+                /* * 
+                 * audio visualizer with html5 audio element
+                 *
+                 * v0.1.0
+                 * 
+                 * licenced under the MIT license
+                 * 
+                 * see my related repos:
+                 * - HTML5_Audio_Visualizer https://github.com/wayou/HTML5_Audio_Visualizer
+                 * - 3D_Audio_Spectrum_VIsualizer https://github.com/wayou/3D_Audio_Spectrum_VIsualizer
+                 * - selected https://github.com/wayou/selected
+                 * - MeowmeowPlayer https://github.com/wayou/MeowmeowPlayer
+                 * 
+                 * reference: http://www.patrick-wied.at/blog/how-to-create-audio-visualizations-with-javascript-html
+                 */
+                var audio = this.audio_player;
+                var ctx = new AudioContext();
+                var analyser = ctx.createAnalyser();
+                var audioSrc = ctx.createMediaElementSource(audio);
+                // we have to connect the MediaElementSource with the analyser 
+                audioSrc.connect(analyser);
+                analyser.connect(ctx.destination);
+                // we could configure the analyser: e.g. analyser.fftSize (for further infos read the spec)
+                // analyser.fftSize = 64;
+                // frequencyBinCount tells you how many values you'll receive from the analyser
+                var frequencyData = new Uint8Array(analyser.frequencyBinCount);
+
+                // we're ready to receive some data!
+                var canvas = this.$.visualizer,
+                        cwidth = canvas.width,
+                        cheight = canvas.height - 2,
+                        meterWidth = 10, //width of the meters in the spectrum
+                        gap = 2, //gap between meters
+                        capHeight = 2,
+                        capStyle = '#fff',
+                        meterNum = 800 / (10 + 2), //count of the meters
+                        capYPositionArray = []; ////store the vertical position of hte caps for the preivous frame
+                ctx = canvas.getContext('2d');
+                var gradient = ctx.createLinearGradient(0, 0, 0, 300);
+                gradient.addColorStop(1, '#0f0');
+                gradient.addColorStop(0.5, '#ff0');
+                gradient.addColorStop(0, '#f00');
+                // loop
+                function renderFrame() {
+                    var array = new Uint8Array(analyser.frequencyBinCount);
+                    analyser.getByteFrequencyData(array);
+                    var step = Math.round((array.length - 400) / meterNum); //sample limited data from the total array
+                    ctx.clearRect(0, 0, cwidth, cheight);
+                    for (var i = 0; i < meterNum; i++) {
+                        var value = array[i * step];
+                        if (capYPositionArray.length < Math.round(meterNum)) {
+                            capYPositionArray.push(value);
+                        }
+                        ;
+                        ctx.fillStyle = capStyle;
+                        //draw the cap, with transition effect
+                        if (value < capYPositionArray[i]) {
+                            ctx.fillRect(i * 12, cheight - (--capYPositionArray[i]), meterWidth, capHeight);
+                        } else {
+                            ctx.fillRect(i * 12, cheight - value, meterWidth, capHeight);
+                            capYPositionArray[i] = value;
+                        }
+                        ;
+                        ctx.fillStyle = gradient; //set the filllStyle to gradient for a better look
+                        ctx.fillRect(i * 12 /*meterWidth+gap*/, cheight - value + capHeight, meterWidth, cheight); //the meter
+                    }
+                    requestAnimationFrame(renderFrame);
+                }
+                renderFrame();
+            }
+
+            // Přehraj/pozastav
+            play() {
+                if (this.video_player || this.audio_player) {
+                    if (this.playing) {
+                        // Pauza
+                        this.playing = false;
+                        this.btn_play = "fa fa-lg fa-play";
+                        if (this.type) {
+                            // Youtube
+                            this.video_player.pause();
+                        } else {
+                            // Spotify
+                            this.audio_player.pause();
+                        }
+                    } else {
+                        // Pokračuj v přehrávání
+                        this.playing = true;
+                        this.btn_play = "fa fa-lg fa-pause";
+                        if (this.type) {
+                            // Youtube
+                            this.video_player.play();
+                        } else {
+                            // Spotify
+                            this.audio_player.play();
+                        }
+                    }
+                }
+            }
+            // Další skladba
+            next() {
+                this.full_title = "Načítání";
+                document.body.style.cursor = "wait";
+                var player = this;
+                var xhttp = new XMLHttpRequest();
+                xhttp.onreadystatechange = function () {
+                    if (this.readyState == 4 && this.status == 200) {
+                        var track = JSON.parse(this.responseText);
+                        document.body.style.cursor = "auto";
+                        if (!track.error) {
+                            if (player.track == null || player.track.track_id != track.track_id) {
+                                player.track = track;
+                                player.processPlay();
+                            } else {
+                                player.play();
+                            }
+                            if (track.reccomended_tracks) {
+                                player.recommended_like = track.reccomended_tracks.like;
+                                player.recommended = track.reccomended_tracks.may_like;
+                            }
+                        } else {
+                            player.full_title = track.error;
+                        }
+                    }
+
+                };
+                var url = "./api.php?nextSong&mode=" + this.mode + "&genre=" + this.genre + "&year=" + this.year;
+                xhttp.open("GET", url, true);
+                xhttp.send();
+            }
+
+            // Zpracuje přehrátí skladby
+            processPlay() {
+                if (this.track.full_title.length > 75){
+                    this.full_title = this.track.full_title.substring(0,75) + "...";
+                } else {
+                    this.full_title = this.track.full_title;
+                }
+                
+                if (this.track.like) {
+                    this.btn_like = "btn btn-dark active";
+                } else {
+                    this.btn_like = "btn btn-dark";
+                }
+                if (this.track.dislike) {
+                    this.btn_dislike = "btn btn-dark active";
+                } else {
+                    this.btn_dislike = "btn btn-dark";
+                }
+                if (this.type) {
+                    // Youtube
+                    this.playVideo();
+                } else {
+                    // Spotify
+                    this.playAudio();
+                }
+                this.playing = true;
+                this.btn_play = "fa fa-lg fa-pause";
+            }
+
+            // Přehraj audio
+            playAudio() {
+                if (!this.audio_player) {
+                    var player = this;
+                    // Pokud přehrávač neexistuje, vytvoř ho
+                    this.audio_player = new Audio(this.track.preview_url);
+                    this.audio_player.crossOrigin = "anonymous";
+                    this.audio_player.addEventListener('ended', function (e) {
+                        player.next();
+                    });
+                    this.createVisualizer();
+                } else {
+                    // Přehraj písníčku
+                    this.audio_player.src = this.track.preview_url;
+                }
+                this.audio_player.play();
+            }
+
+            // Přehraj video
+            playVideo() {
+                if (this.track.youtube_code) {
+                    if (!this.video_player) {
+                        // Pokud přehrávač neexistuje, vytvoř ho
+                        var tag = document.createElement('google-youtube');
+                        tag.setAttribute("video-id", this.track.youtube_code);
+                        tag.setAttribute("fluid", "true");
+                        tag.setAttribute("autoplay", "1");
+                        this.$.youtubeplayer.appendChild(tag);
+                        this.video_player = this.$.youtubeplayer.firstChild;
+                        var player = this;
+                        this.video_player.addEventListener('state-changed', function (e) {
+                            switch (e.target.state) {
+                                case - 1:
+                                    // unstarted
+                                    break;
+                                case 0:
+                                    // ended
+                                    player.next();
+                                    break;
+                                case 1:
+                                    // playing
+                                    break;
+                                case 2:
+                                    // paused
+                                    break;
+                                case 3:
+                                    // buffering
+                                    break;
+                                case 5:
+                                    // video cued
+                                    break;
+                                default:
+                            }
+                        });
+                    } else {
+                        // Přehraj video
+                        this.video_player.videoId = this.track.youtube_code;
+                        if (this.video_player.state == 2) {
+                            this.video_player.play();
+                        }
+                    }
+                } else {
+                    this.next();
+                }
+            }
+
+            // To se mi líbí
+            like(t) {
+                var track_id = "";
+                if (this.track) {
+                    // Like hrající skladby
+                    track_id = this.track.track_id;
+                }
+                if (typeof t == "string") {
+                    // Like vybrané skladby
+                    track_id = t;
+                }
+                if (track_id != "") {
+                    var http = new XMLHttpRequest();
+                    var url = "./api.php?like";
+                    var params = "like=" + track_id;
+                    http.open("POST", url, true);
+                    http.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                    http.onreadystatechange = function () {//Call a function when the state changes.
+                        if (http.readyState == 4 && http.status == 200) {
+                        }
+                    }
+                    http.send(params);
+                    // Hrající skladba
+                    if (this.track && track_id == this.track.track_id) {
+                        if (!this.track.like) {
+                            this.track.like = true;
+                            this.btn_like = "btn btn-dark active";
+                        } else {
+                            this.track.like = false;
+                            this.btn_like = "btn btn-dark";
+                        }
+                        // Nejedná se o aktivaci z vnějšku
+                        if (typeof t != "string") {
+                            for (var i = 0; i < this.recommended.length; i++) {
+                                if (this.recommended[i].track_id == track_id) {
+                                    this.recommended[i].like = this.track.like;
+                                    var tmp = this.recommended;
+                                    this.recommended = [];
+                                    this.$.tracksList.render();
+                                    this.recommended = tmp;
+                                    break;
+                                }
+                            }
+                            this.$.albumView._refreshLike(track_id);
+                            this.$.playerSearch._refreshLike(track_id);
+
+                        }
+                    }
+                    this.$.whitelist.load();
+                }
+            }
+            // To se mi nelíbí
+            dislike(t) {
+                var track_id = "";
+                if (this.track) {
+                    // Dislike hrající skladby
+                    track_id = this.track.track_id;
+                }
+                if (typeof t == "string") {
+                    // Dislike vybrané skladby
+                    track_id = t;
+                }
+                if (track_id != "") {
+                    var http = new XMLHttpRequest();
+                    var url = "./api.php?dislike";
+                    var params = "dislike=" + track_id;
+                    http.open("POST", url, true);
+                    http.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                    http.onreadystatechange = function () {//Call a function when the state changes.
+                        if (http.readyState == 4 && http.status == 200) {
+                        }
+                    }
+                    http.send(params);
+                    // Hrající skladba
+                    if (track_id == this.track.track_id) {
+                        if (!this.track.dislike) {
+                            this.track.dislike = true;
+                            this.btn_dislike = "btn btn-dark active";
+                        } else {
+                            this.track.dislike = false;
+                            this.btn_dislike = "btn btn-dark";
+                        }
+                        // Aktivace z vnějšku
+                        if (typeof t != "string") {
+                            for (var i = 0; i < this.recommended.length; i++) {
+                                if (this.recommended[i].track_id == track_id) {
+                                    this.recommended[i].dislike = this.track.dislike;
+                                    var tmp = this.recommended;
+                                    this.recommended = [];
+                                    this.$.tracksList.render();
+                                    this.recommended = tmp;
+                                    break;
+                                }
+                            }
+                        }
+                        if (this.track.dislike) {
+                            this.next();
+                        }
+                    }
+                    this.$.blacklist.load();
+                }
+            }
+            // Nastavit mód
+            setMode(e) {
+                switch (this.mode) {
+                    case 1:
+                        this.btn_mode1 = "btn btn-dark";
+                        break;
+                    case 2:
+                        this.btn_mode2 = "btn btn-dark";
+                        break;
+                    case 3:
+                        this.btn_mode3 = "btn btn-dark";
+                        break;
+                }
+                this.mode = parseInt(e.target.getAttribute('data-args'));
+                switch (this.mode) {
+                    case 1:
+                        this.btn_mode1 = "btn btn-dark active";
+                        break;
+                    case 2:
+                        this.btn_mode2 = "btn btn-dark active";
+                        break;
+                    case 3:
+                        this.btn_mode3 = "btn btn-dark active";
+                        break;
+                }
+                this.next();
+            }
+            // Nastaví žánr
+            setGenre(e) {
+                if (e.detail.value != "") {
+                    for (var i = 0; i < this.genres.length; i++) {
+                        if (this.genres[i].name == e.detail.value) {
+                            this.genre = this.genres[i].id;
+                            if (this.playing) {
+                                this.next();
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+            // Nastaví desetiletí
+            setYear(e) {
+                if (e.detail.value != "") {
+                    for (var i = 0; i < this.years.length; i++) {
+                        if (this.years[i].name == e.detail.value) {
+                            this.year = this.years[i].id;
+                            if (this.playing) {
+                                this.next();
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+            // Přepne přehrávač
+            switchPlayer(e) {
+                this.type = (parseInt(e.target.getAttribute('data-args')) == 1) ? false : true;
+                if (this.type) {
+                    // Zapni Youtube
+                    this.btn_youtube = "btn btn-danger";
+                    this.btn_spotify = "btn btn-dark";
+                    this.$.youtubeplayer.style.display = "block";
+                    if (this.playing) {
+                        this.audio_player.pause();
+                    }
+                    if (this.track) {
+                        this.processPlay();
+                    }
+                } else
+                {
+                    // Zapni Spotify
+                    this.$.youtubeplayer.style.display = "none";
+                    this.btn_youtube = "btn btn-dark";
+                    this.btn_spotify = "btn btn-success";
+                    if (this.playing) {
+                        this.video_player.pause();
+                    }
+                    if (this.track) {
+                        this.processPlay();
+                    }
+                }
+            }
+
+            // Získá seznam žánrů
+            getGenres() {
+                var player = this;
+                var xhttp = new XMLHttpRequest();
+                xhttp.onreadystatechange = function () {
+                    if (this.readyState == 4 && this.status == 200) {
+                        player.genres = JSON.parse(this.responseText);
+                    }
+                };
+                var url = "./api.php?getGenres";
+                xhttp.open("GET", url, true);
+                xhttp.send();
+            }
+
+            // Získá seznam desetiletí
+            getYears() {
+                var player = this;
+                var xhttp = new XMLHttpRequest();
+                xhttp.onreadystatechange = function () {
+                    if (this.readyState == 4 && this.status == 200) {
+                        player.years = JSON.parse(this.responseText);
+                    }
+                };
+                var url = "./api.php?getYears";
+                xhttp.open("GET", url, true);
+                xhttp.send();
+            }
+
+            playTrackButton(e) {
+                var track_id = e.target.getAttribute('data-args');
+                this.playTrack(track_id);
+            }
+
+            playTrack(track_id) {
+                this.full_title = "Načítání";
+                var player = this;
+                var xhttp = new XMLHttpRequest();
+                xhttp.onreadystatechange = function () {
+                    if (this.readyState == 4 && this.status == 200) {
+                        var track = JSON.parse(this.responseText);
+                        if (!track.error) {
+                            if (player.track == null || player.track.track_id != track.track_id) {
+                                player.track = track;
+                                player.processPlay();
+                            } else {
+                                player.play();
+                            }
+                        } else {
+                            player.full_title = track.error;
+                        }
+                    }
+                };
+                var url = "./api.php?getTrack&" + track_id;
+                xhttp.open("GET", url, true);
+                xhttp.send();
+            }
+
+            _playTrack(e) {
+                this.playTrack(e.detail);
+            }
+
+            likeTrackButton(e) {
+                var track_id = e.target.getAttribute('data-args');
+                this.like(track_id);
+                for (var i = 0; i < this.recommended.length; i++) {
+                    if (this.recommended[i].track_id == track_id) {
+                        this.recommended[i].like = !this.recommended[i].like;
+                        var tmp = this.recommended;
+                        this.recommended = [];
+                        this.$.tracksList.render();
+                        this.recommended = tmp;
+                        break;
+                    }
+                }
+            }
+
+            dislikeTrackButton(e) {
+                var track_id = e.target.getAttribute('data-args');
+                for (var i = 0; i < this.recommended.length; i++) {
+                    if (this.recommended[i].track_id == track_id) {
+                        this.recommended[i].dislike = !this.recommended[i].dislike;
+                        var tmp = this.recommended;
+                        this.recommended = [];
+                        this.$.tracksList.render();
+                        this.recommended = tmp;
+                        break;
+                    }
+                }
+                this.dislike(track_id);
+            }
+
+            _likeTrack(e) {
+                this.like(e.detail);
+            }
+
+            _routeChanged(changeRecord) {
+                if (!(changeRecord.path.startsWith("/artist") ||
+                        changeRecord.path.startsWith("/album") ||
+                        changeRecord.path.startsWith("/search") ||
+                        changeRecord.path.startsWith("/white-list") ||
+                        changeRecord.path.startsWith("/black-list"))) {
+                    this.home = true;
+                } else {
+                    this.home = false;
+                }
+                if (changeRecord.path == "/settings") {
+                    window.location.replace("./index.php?account&settings");
+                }
+                if (changeRecord.path == "/help") {
+                    window.location.replace("./index.php?info&help");
+                }
+                if (changeRecord.path == "/logout") {
+                    window.location.replace("./index.php?account&logout");
+                }
+            }
+        }
+        customElements.define(PlayMCElement.is, PlayMCElement);
+    </script>
+</dom-module>

@@ -18,16 +18,10 @@ class Random {
         return (int) (- log(1 - (1 - exp(- $lambda * $tau)) * $r) / $lambda);
     }
 
-    public function nrand($mean, $sd) {
-        $x = mt_rand() / mt_getrandmax();
-        $y = mt_rand() / mt_getrandmax();
-        return sqrt(-2 * log($x)) * cos(2 * pi() * $y) * $sd + $mean;
-    }
-
     // Alternativní rozdělení
     public function bernoulliDistribution($i){
         $r = mt_rand(0, mt_getrandmax()) / mt_getrandmax();
-        if ($r > $i){
+        if ($r < $i){
             return 1;
         } else {
             return 0;

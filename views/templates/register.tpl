@@ -4,7 +4,7 @@
         <h1 class='h1'>Registrace</h1>
 
         {if count($messageDanger) neq 0}
-            <div class="alert alert-danger">
+            <div class="alert alert-danger pb-0">
                 {foreach $messageDanger as $message}
                     <p>{$message}</p>
                 {/foreach}
@@ -39,6 +39,7 @@
                     <div class="form-group">
                         <label for="label_password">Heslo</label>
                         <input type="password" class="form-control" id="label_password" name="reg_password" placeholder="******" required>
+                        <small id="emailHelp" class="form-text text-muted">Heslo musí být dlouhé minimálně 6 znaků.</small>
                     </div>
                 </div>
                 <div class='col-md-6'>
@@ -56,7 +57,7 @@
                     <input type="checkbox"> Souhlasím s podmínkami
                 </label>
             </div>-->
-            <button type="submit" class="btn btn-secondary"><i class="fa fa-pencil fa-lg"></i> Zaregistrovat se</button>
+            <button type="submit" class="btn btn-secondary mt-2"><i class="fa fa-pencil fa-lg"></i> Zaregistrovat se</button>
         </form>
     </div>
 {/block}

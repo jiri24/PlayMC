@@ -47,4 +47,17 @@ class MailSender {
                 . WEB_NAME;
         $this->send();
     }
+    
+    // Odešle email pro obnovení hesla
+    public function sendResetPasswordMail($to, $id, $key){
+        $this->to = $to;
+        $this->subject = "PlayMC: Obnovení hesla";
+        $this->message = "Dobrý den,\n"
+                . "přijali jsme Vaši žádost o obnovení hesla k účtu na webu " . WEB_NAME . ". Pro obnovení hesla klikněte na následující odkaz:\n"
+                . WEB_URL . "index.php?account&reset-password&" . $id . "&" . $key . "\n"
+                . "\n"
+                . "S pozdravem,\n"
+                . WEB_NAME;
+        $this->send();
+    }
 }

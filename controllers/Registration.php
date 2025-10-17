@@ -128,7 +128,7 @@ class Registration {
             'name' => $values['reg_name'],
             'surname' => $values['reg_surname'],
             'email' => $values['reg_email'],
-            'password' => $this->system->hashPassword($values['reg_password'], $values['reg_email']),
+            'password' => $this->system->hashPassword($values['reg_password'], "PlayMC"),
             'active_key' => $this->system->generateString(6),
             'active' => 0);
         $this->system->getDB()->insert("INSERT INTO users (name, surname, email, password, active_key, active) VALUES(:name,:surname,:email,:password,:active_key,:active)", $data);
